@@ -1,0 +1,1137 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>生活台账</title>
+<script>
+  // 如果 7 秒内外部脚本还没加载完（网络慢/被拦截），给出明确提示而不是一直转圈
+  window.__sbTimer = setTimeout(function(){
+    if(typeof window.supabase === 'undefined'){
+      document.getElementById('app').innerHTML =
+        '<div class="configwarn"><b>加载超时</b><br><br>' +
+        '外部脚本（Supabase 客户端库）一直没加载完，通常是网络较慢或被拦截导致的。' +
+        '可以尝试：切换 WiFi/移动数据、换个浏览器，或者过一会儿再打开。' +
+        '<br><br><span style="text-decoration:underline;" onclick="location.reload()">点此重新加载</span></div>';
+    }
+  }, 7000);
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700&family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+:root{
+  --ink:#2B2B26;
+  --ink-soft:#69655a;
+  --ink-faint:#948f80;
+  --paper:#E7E3D8;
+  --card:#FFFDF9;
+  --card-border:#DAD3C1;
+  --line:#D2CAB6;
+  --a-fitness:#A83246;
+  --a-fridge:#2F7A5E;
+  --a-household:#3E6B99;
+  --a-chores:#B8862F;
+  --a-finance:#6B4E8E;
+  --a-dash:#1F6F78;
+  --alert:#C0392B;
+  --alert-bg:#F7E4E0;
+  --good:#2F7A5E;
+  --good-bg:#E2EEE7;
+  --radius:12px;
+  --shadow:0 1px 2px rgba(43,43,38,.08),0 6px 14px rgba(43,43,38,.07);
+  --font-display:'Noto Serif SC',serif;
+  --font-body:'Noto Sans SC',sans-serif;
+  --font-mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--font-body);
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+}
+#app{max-width:480px;margin:0 auto;min-height:100vh;position:relative;padding-bottom:88px;}
+
+/* ---- header ---- */
+.topbar{
+  position:sticky;top:0;z-index:10;
+  background:var(--paper);
+  padding:18px 18px 12px;
+  border-bottom:1px solid var(--line);
+}
+.topbar .eyebrow{
+  font-family:var(--font-mono);
+  font-size:11px;letter-spacing:.12em;
+  color:var(--ink-faint);text-transform:uppercase;
+  margin-bottom:2px;
+}
+.topbar h1{
+  font-family:var(--font-display);
+  font-size:22px;font-weight:700;margin:0;
+  display:flex;align-items:center;gap:8px;
+}
+.topbar .tab-strip{height:4px;border-radius:2px;width:38px;margin-top:10px;}
+
+/* ---- content ---- */
+.content{padding:14px 16px 20px;}
+
+/* ---- cards ---- */
+.card{
+  background:var(--card);
+  border:1px solid var(--card-border);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:14px 15px;
+  margin-bottom:12px;
+  position:relative;
+  overflow:hidden;
+}
+.card.tab::before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:4px;
+  background:var(--tab-color,var(--ink-faint));
+}
+.card.tab{padding-left:17px;}
+.card.alert{background:var(--alert-bg);border-color:#E3B7AE;}
+.card.good{background:var(--good-bg);border-color:#B9D6C6;}
+
+.section-label{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;
+  color:var(--ink-faint);text-transform:uppercase;margin:18px 2px 8px;
+}
+.section-label:first-child{margin-top:2px;}
+
+/* ---- typography helpers ---- */
+.mono{font-family:var(--font-mono);}
+.muted{color:var(--ink-soft);}
+.faint{color:var(--ink-faint);font-size:12.5px;}
+.title-serif{font-family:var(--font-display);font-weight:700;}
+
+/* ---- buttons ---- */
+.btn{
+  font-family:var(--font-body);font-weight:600;font-size:14px;
+  border-radius:9px;border:1px solid transparent;padding:9px 14px;
+  cursor:pointer;display:inline-flex;align-items:center;gap:6px;
+  -webkit-tap-highlight-color:transparent;
+}
+.btn-primary{background:var(--btn-color,var(--ink));color:#fff;}
+.btn-primary:active{opacity:.85;}
+.btn-ghost{background:transparent;border:1px solid var(--line);color:var(--ink);}
+.btn-ghost:active{background:#0000000a;}
+.btn-block{width:100%;justify-content:center;}
+.btn-sm{padding:5px 9px;font-size:12.5px;border-radius:7px;}
+.icon-btn{
+  width:30px;height:30px;border-radius:8px;border:1px solid var(--line);
+  background:#fff;display:flex;align-items:center;justify-content:center;
+  font-size:16px;cursor:pointer;font-family:var(--font-mono);font-weight:700;
+  color:var(--ink);
+}
+.icon-btn:active{background:#0000000a;}
+
+/* ---- form elements ---- */
+label{display:block;font-size:12.5px;color:var(--ink-soft);margin:12px 0 5px;font-weight:600;}
+label:first-child{margin-top:0;}
+input[type=text],input[type=number],input[type=date],textarea,select{
+  width:100%;border:1px solid var(--line);border-radius:8px;
+  padding:10px 11px;font-size:15px;font-family:var(--font-body);
+  background:#fff;color:var(--ink);
+}
+input[type=number]{font-family:var(--font-mono);}
+textarea{min-height:76px;resize:vertical;line-height:1.5;}
+.seg{display:flex;gap:6px;flex-wrap:wrap;}
+.seg-opt{
+  flex:1;text-align:center;padding:8px 6px;border-radius:8px;border:1px solid var(--line);
+  font-size:13.5px;cursor:pointer;background:#fff;min-width:60px;
+}
+.seg-opt.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+.stars{display:flex;gap:6px;font-size:22px;}
+.stars span{cursor:pointer;opacity:.3;}
+.stars span.on{opacity:1;}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px;}
+.toggle-row:last-child{border-bottom:none;}
+.switch{width:38px;height:22px;border-radius:11px;background:var(--line);position:relative;cursor:pointer;flex-shrink:0;}
+.switch.on{background:var(--good);}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .15s;}
+.switch.on::after{transform:translateX(16px);}
+
+/* ---- inventory rows ---- */
+.inv-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);}
+.inv-row:last-child{border-bottom:none;}
+.inv-name{flex:1;min-width:0;}
+.inv-name .n{font-weight:600;font-size:14.5px;}
+.inv-name .u{font-size:11.5px;color:var(--ink-faint);}
+.qty-ctrl{display:flex;align-items:center;gap:5px;}
+.qty-ctrl input{width:52px;text-align:center;padding:6px 2px;font-size:14px;}
+.badge{
+  font-family:var(--font-mono);font-size:10.5px;font-weight:700;
+  padding:2px 6px;border-radius:5px;letter-spacing:.03em;
+}
+.badge.alert{background:var(--alert);color:#fff;}
+.badge.ok{background:#EEEAdd;color:var(--ink-soft);}
+
+/* ---- bottom nav ---- */
+.bottomnav{
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+  width:100%;max-width:480px;background:var(--card);
+  border-top:1px solid var(--line);
+  display:flex;padding:8px 4px calc(8px + env(safe-area-inset-bottom));
+  z-index:20;
+}
+.navbtn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:5px 2px;border-radius:8px;cursor:pointer;color:var(--ink-faint);}
+.navbtn .ic{font-size:19px;}
+.navbtn .lb{font-size:10px;font-weight:600;}
+.navbtn.active{color:var(--nav-color,var(--ink));}
+.navbtn.active .ic{transform:translateY(-1px);}
+
+/* ---- sheet / modal ---- */
+.overlay{position:fixed;inset:0;background:rgba(30,28,22,.42);z-index:30;
+  display:flex;align-items:flex-end;justify-content:center;}
+.sheet{
+  width:100%;max-width:480px;max-height:88vh;overflow-y:auto;
+  background:var(--card);border-radius:16px 16px 0 0;
+  padding:16px 18px calc(20px + env(safe-area-inset-bottom));
+  box-shadow:0 -6px 24px rgba(0,0,0,.18);
+}
+.sheet-handle{width:36px;height:4px;background:var(--line);border-radius:2px;margin:0 auto 14px;}
+.sheet-title{font-family:var(--font-display);font-weight:700;font-size:18px;margin-bottom:2px;}
+.sheet-sub{font-size:12.5px;color:var(--ink-faint);margin-bottom:14px;}
+
+/* ---- misc ---- */
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.emptystate{padding:28px 10px;text-align:center;color:var(--ink-faint);}
+.emptystate .em{font-size:28px;margin-bottom:8px;}
+.divider{height:1px;background:var(--line);margin:10px 0;}
+.progress{height:7px;border-radius:4px;background:var(--line);overflow:hidden;}
+.progress > div{height:100%;border-radius:4px;}
+.stamp{
+  font-family:var(--font-mono);font-size:10px;font-weight:700;
+  border:1.5px solid currentColor;border-radius:5px;padding:1px 6px;
+  display:inline-block;transform:rotate(-2deg);letter-spacing:.05em;
+}
+.navgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.navcard{
+  background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);
+  padding:14px 8px;text-align:center;box-shadow:var(--shadow);cursor:pointer;
+}
+.navcard .ic{font-size:22px;margin-bottom:4px;}
+.navcard .lb{font-size:12px;font-weight:600;}
+.loading{padding:60px 20px;text-align:center;color:var(--ink-faint);font-family:var(--font-mono);font-size:13px;}
+.reminder-item{display:flex;gap:9px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--line);font-size:13.5px;}
+.reminder-item:last-child{border-bottom:none;}
+.reminder-item .dot{width:7px;height:7px;border-radius:50%;margin-top:5px;flex-shrink:0;}
+.chip{font-family:var(--font-mono);font-size:10.5px;color:var(--ink-faint);border:1px solid var(--line);border-radius:5px;padding:1px 6px;}
+::placeholder{color:var(--ink-faint);}
+.sparkwrap{display:flex;align-items:center;gap:12px;}
+.sparkwrap svg{flex-shrink:0;}
+.authwrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+.authcard{width:100%;max-width:360px;background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);box-shadow:var(--shadow);padding:28px 24px;}
+.authcard h1{font-family:var(--font-display);font-size:22px;margin:0 0 4px;text-align:center;}
+.authcard .sub{text-align:center;color:var(--ink-faint);font-size:12.5px;margin-bottom:20px;}
+.authtabs{display:flex;gap:6px;margin-bottom:16px;background:var(--paper);border-radius:8px;padding:3px;}
+.authtabs div{flex:1;text-align:center;padding:7px;border-radius:6px;font-size:13px;cursor:pointer;color:var(--ink-faint);}
+.authtabs div.active{background:#fff;color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08);}
+.autherr{color:var(--alert);font-size:12.5px;margin-top:8px;min-height:16px;}
+.configwarn{max-width:420px;margin:60px auto;padding:20px;background:var(--alert-bg);border:1px solid #E3B7AE;border-radius:var(--radius);font-size:13.5px;line-height:1.7;}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;}}
+</style>
+</head>
+<body>
+<div id="app"><div class="loading">正在加载…</div></div>
+<script>
+clearTimeout(window.__sbTimer);
+/* ============ Supabase 配置 ============ */
+/* 把下面两个值换成你自己 Supabase 项目里的 Project URL 和 anon public key
+   （Supabase 后台 → Project Settings → API 页面能找到） */
+const SUPABASE_URL = 'https://qpvamrfymhhjzikhktsa.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFwdmFtcmZ5bWhoanppa2hrdHNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwNzI2ODAsImV4cCI6MjA5ODY0ODY4MH0.o8SCIjLmZy3INve0AeDF-BaHNp0H6c4TK8lBmSQhUao';
+
+let sb = null;
+let currentUser = null;
+if(SUPABASE_URL.includes('YOUR-PROJECT') || SUPABASE_ANON_KEY.includes('YOUR-ANON')){
+  document.getElementById('app').innerHTML = `<div class="configwarn">
+    <b>还没配置 Supabase</b><br><br>
+    打开这个文件，把开头 <span class="mono">SUPABASE_URL</span> 和 <span class="mono">SUPABASE_ANON_KEY</span>
+    换成你自己 Supabase 项目的值，保存后重新打开页面即可。
+  </div>`;
+} else {
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+
+/* ============ storage（读写 Supabase 里的 app_data 表） ============ */
+const KEYS = {
+  fitnessWorkouts:'fitness-workouts',
+  fitnessWeight:'fitness-weight',
+  fridge:'fridge-items',
+  household:'household-items',
+  chores:'chores-tasks',
+  financeConfig:'finance-config',
+  financeTx:'finance-transactions',
+  dismissed:'dashboard-dismissed',
+  dashboardMemo:'dashboard-memo'
+};
+const DEFAULTS = {
+  fitnessWorkouts:[], fitnessWeight:[], fridge:[], household:[], chores:[],
+  financeConfig:{monthlyBudget:3500, rentPaymentAmount:1250, rentCycleDays:14, lastRentPaid:null, diningWeekly:30, laundryWeekly:8, reserve:100},
+  financeTx:[], dismissed:{}, dashboardMemo:''
+};
+let state = JSON.parse(JSON.stringify(DEFAULTS));
+let route = 'dashboard';
+let modal = null; // {type, ...payload}
+let temp = {}; // scratch state for open forms
+let authMode = 'login'; // 'login' | 'signup'
+
+async function loadKey(k){
+  try{
+    const { data, error } = await sb.from('app_data').select('value').eq('key', KEYS[k]).maybeSingle();
+    if(error || !data) return DEFAULTS[k];
+    return data.value;
+  }catch(e){ return DEFAULTS[k]; }
+}
+async function saveKey(k, attempt){
+  attempt = attempt||1;
+  try{
+    const { error } = await sb.from('app_data').upsert(
+      { user_id: currentUser.id, key: KEYS[k], value: state[k], updated_at: new Date().toISOString() },
+      { onConflict: 'user_id,key' }
+    );
+    if(error) throw error;
+    hideSaveError();
+  }catch(e){
+    console.error('save failed', k, e, 'attempt', attempt);
+    if(attempt < 3){
+      await new Promise(r=>setTimeout(r, 400*attempt));
+      return saveKey(k, attempt+1);
+    }
+    showSaveError();
+  }
+}
+function showSaveError(){
+  let el = document.getElementById('save-toast');
+  if(!el){
+    el = document.createElement('div');
+    el.id='save-toast';
+    el.style.cssText='position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--alert);color:#fff;padding:8px 14px;border-radius:8px;font-size:12.5px;z-index:50;max-width:90%;text-align:center;';
+    el.textContent='保存失败，请检查网络后重试刚才的操作';
+    document.body.appendChild(el);
+  }
+}
+function hideSaveError(){
+  const el = document.getElementById('save-toast');
+  if(el) el.remove();
+}
+
+/* ============ 登录 / 注册 ============ */
+function renderAuth(err){
+  document.getElementById('app').innerHTML = `
+    <div class="authwrap"><div class="authcard">
+      <h1>🗂️ 生活台账</h1>
+      <div class="sub">数据存在你自己的 Supabase 里</div>
+      <div class="authtabs">
+        <div class="${authMode==='login'?'active':''}" onclick="authMode='login';renderAuth();">登录</div>
+        <div class="${authMode==='signup'?'active':''}" onclick="authMode='signup';renderAuth();">首次注册</div>
+      </div>
+      <label style="margin-top:0;">邮箱</label><input type="text" id="auth-email" placeholder="you@example.com">
+      <label>密码</label><input type="text" id="auth-pw" placeholder="至少6位">
+      <div class="btn btn-primary btn-block" style="--btn-color:var(--a-dash);margin-top:16px;" onclick="${authMode==='login'?'doLogin()':'doSignup()'}">${authMode==='login'?'登录':'注册并登录'}</div>
+      <div class="autherr">${err?esc(err):''}</div>
+    </div></div>
+  `;
+}
+async function doLogin(){
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-pw').value;
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if(error){ renderAuth(error.message); return; }
+  currentUser = data.user;
+  boot();
+}
+async function doSignup(){
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-pw').value;
+  if(password.length<6){ renderAuth('密码至少需要6位'); return; }
+  const { data, error } = await sb.auth.signUp({ email, password });
+  if(error){ renderAuth(error.message); return; }
+  if(!data.session){ renderAuth('注册成功，请去邮箱点击确认链接后再回来登录'); authMode='login'; return; }
+  currentUser = data.user;
+  boot();
+}
+async function doLogout(){
+  await sb.auth.signOut();
+  currentUser = null;
+  state = JSON.parse(JSON.stringify(DEFAULTS));
+  authMode='login';
+  renderAuth();
+}
+
+async function init(){
+  if(!sb) return; // 未配置，已在上面显示提示
+  const { data } = await sb.auth.getSession();
+  if(data.session){ currentUser = data.session.user; boot(); }
+  else { renderAuth(); }
+}
+async function boot(){
+  document.getElementById('app').innerHTML = '<div class="loading">正在加载数据…</div>';
+  const ks = Object.keys(KEYS);
+  for(const k of ks){ state[k] = await loadKey(k); }
+  migrateFinanceConfig();
+  render();
+}
+// 兼容旧版本字段（rentWeekly/laundryCost 等），避免升级后设置丢失
+function migrateFinanceConfig(){
+  const c = state.financeConfig || {};
+  const d = DEFAULTS.financeConfig;
+  if(c.rentPaymentAmount===undefined){
+    c.rentPaymentAmount = c.rentWeekly ? Math.round(c.rentWeekly*2*100)/100 : d.rentPaymentAmount;
+  }
+  if(c.rentCycleDays===undefined) c.rentCycleDays = d.rentCycleDays;
+  if(c.lastRentPaid===undefined) c.lastRentPaid = null;
+  if(c.laundryWeekly===undefined) c.laundryWeekly = c.laundryCost!==undefined ? c.laundryCost : d.laundryWeekly;
+  if(c.diningWeekly===undefined) c.diningWeekly = d.diningWeekly;
+  if(c.reserve===undefined) c.reserve = d.reserve;
+  if(c.monthlyBudget===undefined) c.monthlyBudget = d.monthlyBudget;
+  delete c.rentWeekly; delete c.laundryCost;
+  state.financeConfig = c;
+  saveKey('financeConfig');
+}
+
+/* ============ utils ============ */
+function uid(){ return Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4); }
+function todayStr(){
+  const d=new Date();
+  const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function monthKey(dateStr){ return (dateStr||todayStr()).slice(0,7); }
+function fmtDate(s){ if(!s) return '—'; const [y,m,d]=s.split('-'); return `${m}/${d}`; }
+function fmtMoney(n){ return (Math.round(n*100)/100).toFixed(2); }
+function ymdToUTC(s){ const [y,m,d]=s.split('-').map(Number); return Date.UTC(y,m-1,d); }
+function daysBetween(a,b){ return Math.round((ymdToUTC(b)-ymdToUTC(a))/86400000); }
+function daysInMonthRemaining(){
+  const now=new Date(); const y=now.getFullYear(), m=now.getMonth();
+  const last=new Date(y,m+1,0).getDate();
+  return Math.max(last-now.getDate()+1,1);
+}
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function nl2br(s){ return esc(s).replace(/\n/g,'<br>'); }
+
+const MODULES = [
+  {key:'dashboard', icon:'📊', label:'总览', color:'var(--a-dash)'},
+  {key:'fitness',   icon:'🏋️', label:'健身', color:'var(--a-fitness)'},
+  {key:'fridge',    icon:'🧊', label:'冰箱', color:'var(--a-fridge)'},
+  {key:'household', icon:'📦', label:'用品', color:'var(--a-household)'},
+  {key:'chores',    icon:'🧹', label:'家务', color:'var(--a-chores)'},
+  {key:'finance',   icon:'💰', label:'财务', color:'var(--a-finance)'},
+];
+function modInfo(key){ return MODULES.find(m=>m.key===key); }
+
+/* ============ app actions ============ */
+const app = {
+  nav(r){ route=r; modal=null; render(); },
+  openModal(m){ modal=m; temp={}; render(); },
+  closeModal(){ modal=null; temp={}; render(); },
+
+  /* ---- fitness ---- */
+  fitness:{
+    submitWorkout(){
+      const date = document.getElementById('wf-date').value || todayStr();
+      const type = temp.wType || '上肢';
+      const content = document.getElementById('wf-content').value.trim();
+      const note = document.getElementById('wf-note').value.trim();
+      if(!content){ alertInline('请填写训练内容'); return; }
+      state.fitnessWorkouts.unshift({id:uid(), date, type, content, rating: temp.wRating||3,
+        easy: !!temp.wEasy, canIncrease: !!temp.wCanIncrease, note});
+      saveKey('fitnessWorkouts');
+      app.closeModal();
+    },
+    delWorkout(id){
+      state.fitnessWorkouts = state.fitnessWorkouts.filter(w=>w.id!==id);
+      saveKey('fitnessWorkouts'); render();
+    },
+    addWeight(){
+      const date = document.getElementById('fw-date').value || todayStr();
+      const w = parseFloat(document.getElementById('fw-weight').value);
+      if(!w){ return; }
+      const list = state.fitnessWeight.filter(x=>x.date!==date);
+      list.push({id:uid(), date, weight:w});
+      list.sort((a,b)=>a.date.localeCompare(b.date));
+      state.fitnessWeight = list;
+      saveKey('fitnessWeight');
+      document.getElementById('fw-weight').value='';
+      render();
+    }
+  },
+
+  /* ---- inventory (fridge & household share logic) ---- */
+  inv:{
+    add(modKey){
+      const name = document.getElementById('inv-name').value.trim();
+      const qty = parseFloat(document.getElementById('inv-qty').value)||0;
+      const unit = document.getElementById('inv-unit').value.trim()|| (temp.invPercent?'%':'个');
+      const threshold = parseFloat(document.getElementById('inv-threshold').value)||0;
+      if(!name){ alertInline('请填写名称'); return; }
+      state[modKey].push({id:uid(), name, qty, unit: temp.invPercent?'%':unit, threshold, isPercent: !!temp.invPercent});
+      saveKey(modKey);
+      app.closeModal();
+    },
+    adjust(modKey, id, delta){
+      const it = state[modKey].find(i=>i.id===id); if(!it) return;
+      it.qty = Math.max(0, Math.round((it.qty+delta)*100)/100);
+      if(it.isPercent) it.qty = Math.min(it.qty,100);
+      saveKey(modKey); render();
+    },
+    setQty(modKey, id, val){
+      const it = state[modKey].find(i=>i.id===id); if(!it) return;
+      let v = parseFloat(val); if(isNaN(v)) v=0;
+      if(it.isPercent) v=Math.min(Math.max(v,0),100);
+      it.qty = v; saveKey(modKey);
+    },
+    del(modKey, id){
+      state[modKey] = state[modKey].filter(i=>i.id!==id);
+      saveKey(modKey); render();
+    },
+    toggleExpand(id){
+      temp.expanded = temp.expanded===id ? null : id; render();
+    },
+    saveEdit(modKey, id){
+      const it = state[modKey].find(i=>i.id===id); if(!it) return;
+      it.name = document.getElementById('e-name-'+id).value.trim()||it.name;
+      it.unit = document.getElementById('e-unit-'+id).value.trim()||it.unit;
+      it.threshold = parseFloat(document.getElementById('e-th-'+id).value)||0;
+      saveKey(modKey); temp.expanded=null; render();
+    }
+  },
+
+  /* ---- chores ---- */
+  chores:{
+    add(){
+      const name = document.getElementById('ch-name').value.trim();
+      const cycleDays = parseInt(document.getElementById('ch-cycle').value)||7;
+      const note = document.getElementById('ch-note').value.trim();
+      if(!name){ alertInline('请填写名称'); return; }
+      state.chores.push({id:uid(), name, cycleDays, lastDone:null, note});
+      saveKey('chores');
+      app.closeModal();
+    },
+    async complete(id){
+      const t = state.chores.find(c=>c.id===id); if(!t) return;
+      t.lastDone = todayStr();
+      await saveKey('chores');
+      if(/洗衣/.test(t.name)){
+        const cfg = state.financeConfig;
+        state.financeTx.unshift({id:uid(), date:todayStr(), amount:cfg.laundryWeekly,
+          category:'洗衣', source:'auto', note:'自动联动：完成"'+t.name+'"（记录用，不重复扣减可支配预算）'});
+        await saveKey('financeTx');
+      }
+      render();
+    },
+    del(id){ state.chores = state.chores.filter(c=>c.id!==id); saveKey('chores'); render(); },
+    editNote(id, val){
+      const t = state.chores.find(c=>c.id===id); if(!t) return;
+      t.note = val; saveKey('chores');
+    }
+  },
+
+  /* ---- finance ---- */
+  finance:{
+    addTx(){
+      const amount = parseFloat(document.getElementById('tx-amount').value);
+      const category = temp.txCat || '食材';
+      const note = document.getElementById('tx-note').value.trim();
+      const date = document.getElementById('tx-date').value || todayStr();
+      if(!amount || amount<=0){ alertInline('请输入有效金额'); return; }
+      state.financeTx.unshift({id:uid(), date, amount, category, source:'manual', note});
+      saveKey('financeTx');
+      app.closeModal();
+    },
+    delTx(id){ state.financeTx = state.financeTx.filter(t=>t.id!==id); saveKey('financeTx'); render(); },
+    payRent(){
+      const c = state.financeConfig;
+      c.lastRentPaid = todayStr();
+      state.financeTx.unshift({id:uid(), date:todayStr(), amount:c.rentPaymentAmount,
+        category:'房租', source:'auto', note:'标记已交房租（记录用，不重复扣减可支配预算）'});
+      saveKey('financeConfig');
+      saveKey('financeTx');
+      render();
+    },
+    saveConfig(){
+      const c = state.financeConfig;
+      c.monthlyBudget = parseFloat(document.getElementById('cf-total').value)||c.monthlyBudget;
+      c.rentPaymentAmount = parseFloat(document.getElementById('cf-rent').value)||0;
+      c.rentCycleDays = parseInt(document.getElementById('cf-rent-cycle').value)||14;
+      c.diningWeekly = parseFloat(document.getElementById('cf-dining').value)||0;
+      c.laundryWeekly = parseFloat(document.getElementById('cf-laundry').value)||0;
+      c.reserve = parseFloat(document.getElementById('cf-reserve').value)||0;
+      saveKey('financeConfig');
+      app.closeModal();
+    }
+  },
+
+  /* ---- dashboard ---- */
+  dash:{
+    dismiss(key){
+      state.dismissed[key.id] = key.qty;
+      saveKey('dismissed'); render();
+    },
+    memoInput(val){
+      state.dashboardMemo = val;
+      clearTimeout(temp._memoTimer);
+      temp._memoTimer = setTimeout(()=>saveKey('dashboardMemo'), 600);
+    }
+  },
+
+  /* ---- backup ---- */
+  backup:{
+    exportText(){
+      const data = {};
+      Object.keys(KEYS).forEach(k=>data[k]=state[k]);
+      return JSON.stringify(data, null, 2);
+    },
+    async copy(){
+      const text = app.backup.exportText();
+      try{
+        await navigator.clipboard.writeText(text);
+        const el = document.getElementById('backup-status');
+        if(el){ el.textContent='已复制到剪贴板'; el.style.color='var(--good)'; }
+      }catch(e){
+        const el = document.getElementById('backup-status');
+        if(el){ el.textContent='自动复制失败，请手动全选文本框内容复制'; el.style.color='var(--alert)'; }
+      }
+    },
+    async restore(){
+      const raw = document.getElementById('backup-import').value.trim();
+      if(!raw){ return; }
+      try{
+        const data = JSON.parse(raw);
+        for(const k of Object.keys(KEYS)){
+          if(data[k]!==undefined){ state[k]=data[k]; await saveKey(k); }
+        }
+        migrateFinanceConfig();
+        app.closeModal();
+      }catch(e){
+        const el = document.getElementById('backup-status');
+        if(el){ el.textContent='恢复失败：内容不是有效的备份格式'; el.style.color='var(--alert)'; }
+      }
+    }
+  }
+};
+function alertInline(msg){
+  const el = document.getElementById('form-error');
+  if(el){ el.textContent = msg; el.style.display='block'; }
+}
+
+/* ============ finance calculations ============ */
+const WEEKS_PER_MONTH = 52/12; // ≈4.33，用于把"每周固定金额"折算成月度固定扣除额
+function financeCalc(){
+  const cfg = state.financeConfig;
+  const mk = monthKey();
+  const txThis = state.financeTx.filter(t=>monthKey(t.date)===mk);
+  const spentBy = cat => txThis.filter(t=>t.category===cat).reduce((s,t)=>s+t.amount,0);
+
+  // 固定扣除额：房租/聚餐/预留/洗衣 都是"固定分配"，不取决于当月是否有对应的实际记账
+  const rentFixed = cfg.rentPaymentAmount*2;
+  const diningFixed = cfg.diningWeekly*WEEKS_PER_MONTH;
+  const reserveFixed = cfg.reserve;
+  const laundryFixed = cfg.laundryWeekly*WEEKS_PER_MONTH;
+  const fixedTotal = rentFixed + diningFixed + reserveFixed + laundryFixed;
+
+  // 可支配生活预算：月预算减去以上四项固定额度之后剩下的部分
+  const discretionaryPool = Math.max(cfg.monthlyBudget - fixedTotal, 0);
+  // 只有"食材/外出餐饮/生活用品/其他"这类手动记账才会消耗可支配预算
+  const discretionarySpent = ['食材','外出餐饮','生活用品','其他'].reduce((s,c)=>s+spentBy(c),0);
+  const discretionaryRemaining = discretionaryPool - discretionarySpent;
+
+  const weeksLeft = daysInMonthRemaining()/7;
+  const weeklyDiscretionary = discretionaryRemaining/weeksLeft;
+  const mealLow = weeklyDiscretionary/14, mealHigh = weeklyDiscretionary/12;
+
+  // 房租实际缴费追踪（用于提醒，不参与预算数额计算）
+  const nextRentDue = cfg.lastRentPaid ? addDays(cfg.lastRentPaid, cfg.rentCycleDays) : null;
+  const rentDaysLeft = nextRentDue ? daysBetween(todayStr(), nextRentDue) : null;
+
+  return {cfg, rentFixed, diningFixed, reserveFixed, laundryFixed, fixedTotal,
+    discretionaryPool, discretionarySpent, discretionaryRemaining,
+    weeklyDiscretionary, mealLow, mealHigh, txThis, nextRentDue, rentDaysLeft};
+}
+
+/* ============ shopping list & reminders (dashboard aggregation) ============ */
+function shoppingList(){
+  const items = [];
+  state.fridge.forEach(i=>{ if(i.qty<=i.threshold) items.push({id:'fridge:'+i.id, mod:'冰箱', icon:'🧊', name:i.name, qty:i.qty, unit:i.unit}); });
+  state.household.forEach(i=>{ if(i.qty<=i.threshold) items.push({id:'household:'+i.id, mod:'用品', icon:'📦', name:i.name, qty:i.qty, unit:i.unit}); });
+  return items.filter(it=>{
+    const dq = state.dismissed[it.id];
+    return dq===undefined || dq!==it.qty;
+  });
+}
+function reminders(){
+  const list = [];
+  state.chores.forEach(t=>{
+    const next = t.lastDone ? daysBetween(todayStr(), addDays(t.lastDone,t.cycleDays)) : -999;
+    if(!t.lastDone || next<=2){
+      list.push({color:'var(--a-chores)', text:`「${t.name}」${!t.lastDone?'尚未打卡':(next<0?'已逾期'+(-next)+'天':(next===0?'今天到期':next+'天后到期'))}`});
+    }
+  });
+  const sl = shoppingList();
+  if(sl.length) list.push({color:'var(--a-fridge)', text:`购物清单中有 ${sl.length} 项需要补充`});
+  const fc = financeCalc();
+  if(fc.discretionaryRemaining<0) list.push({color:'var(--alert)', text:`生活可支配预算已超支 ${fmtMoney(-fc.discretionaryRemaining)} AUD`});
+  if(fc.rentDaysLeft===null) list.push({color:'var(--a-finance)', text:'房租：尚未记录首次缴费日期'});
+  else if(fc.rentDaysLeft<0) list.push({color:'var(--alert)', text:`房租：已逾期 ${-fc.rentDaysLeft} 天，请尽快缴纳 ${fc.cfg.rentPaymentAmount} AUD`});
+  else if(fc.rentDaysLeft<=3) list.push({color:'var(--alert)', text:`房租：${fc.rentDaysLeft===0?'今天':fc.rentDaysLeft+'天后'}到期，${fc.cfg.rentPaymentAmount} AUD`});
+  return list;
+}
+function addDays(dateStr, n){
+  const [y,m,d] = dateStr.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m-1, d));
+  dt.setUTCDate(dt.getUTCDate()+n);
+  return dt.toISOString().slice(0,10);
+}
+
+/* ============ render: shell ============ */
+function render(){
+  const el = document.getElementById('app');
+  const info = modInfo(route);
+  el.innerHTML = `
+    <div class="topbar">
+      <div class="eyebrow">生活台账 · Personal Life Manager</div>
+      <h1>${info.icon} ${info.label}</h1>
+      <div class="tab-strip" style="background:${info.color}"></div>
+    </div>
+    <div class="content">${screenHTML()}</div>
+    ${bottomNavHTML()}
+    ${modal ? modalHTML() : ''}
+  `;
+  wirePostRender();
+}
+
+function bottomNavHTML(){
+  return `<div class="bottomnav">
+    ${MODULES.map(m=>`
+      <div class="navbtn ${route===m.key?'active':''}" style="--nav-color:${m.color}" onclick="app.nav('${m.key}')">
+        <div class="ic">${m.icon}</div>
+        <div class="lb">${m.label}</div>
+      </div>`).join('')}
+  </div>`;
+}
+
+function screenHTML(){
+  switch(route){
+    case 'dashboard': return screenDashboard();
+    case 'fitness': return screenFitness();
+    case 'fridge': return screenInventory('fridge');
+    case 'household': return screenInventory('household');
+    case 'chores': return screenChores();
+    case 'finance': return screenFinance();
+    default: return '';
+  }
+}
+
+/* ============ dashboard ============ */
+function screenDashboard(){
+  const sl = shoppingList();
+  const rem = reminders();
+  const fc = financeCalc();
+  return `
+    <div class="section-label">🛒 购物清单</div>
+    <div class="card tab" style="--tab-color:var(--a-fridge)">
+      ${sl.length===0 ? `<div class="emptystate" style="padding:14px 0;"><div class="em">✓</div>暂无需要补充的物品</div>` :
+        sl.map(it=>`
+          <div class="inv-row">
+            <div class="inv-name"><span class="chip">${it.icon} ${it.mod}</span> <span class="n">${esc(it.name)}</span>
+              <div class="u">剩余 ${it.qty}${it.unit}</div></div>
+            <div class="btn btn-ghost btn-sm" onclick='app.dash.dismiss(${JSON.stringify({id:it.id,qty:it.qty})})'>已处理</div>
+          </div>`).join('')}
+    </div>
+
+    <div class="section-label">🔔 提醒</div>
+    <div class="card tab" style="--tab-color:var(--a-chores)">
+      ${rem.length===0 ? `<div class="emptystate" style="padding:14px 0;"><div class="em">✓</div>暂无需要关注的事项</div>` :
+        rem.map(r=>`<div class="reminder-item"><div class="dot" style="background:${r.color}"></div><div>${r.text}</div></div>`).join('')}
+    </div>
+
+    <div class="section-label">⚡ 快速入口</div>
+    <div class="navgrid">
+      ${MODULES.filter(m=>m.key!=='dashboard').map(m=>`
+        <div class="navcard" onclick="app.nav('${m.key}')">
+          <div class="ic">${m.icon}</div><div class="lb" style="color:${m.color}">${m.label}</div>
+        </div>`).join('')}
+    </div>
+
+    <div class="section-label">📝 备忘录（随手记，做完删掉即可）</div>
+    <div class="card tab" style="--tab-color:var(--a-dash)">
+      <textarea id="memo-input" placeholder="例如：交电费、给房东发消息…" style="min-height:90px;" oninput="app.dash.memoInput(this.value)">${esc(state.dashboardMemo)}</textarea>
+    </div>
+
+    <div class="section-label">💰 财务概览</div>
+    <div class="card tab" style="--tab-color:var(--a-finance)">
+      <div class="row"><span class="muted">月总预算</span><span class="mono">${fmtMoney(fc.cfg.monthlyBudget)} AUD</span></div>
+      <div class="divider"></div>
+      <div class="row"><span class="muted">可支配生活预算剩余</span><span class="mono" style="font-weight:700;color:${fc.discretionaryRemaining<0?'var(--alert)':'var(--ink)'}">${fmtMoney(fc.discretionaryRemaining)} AUD</span></div>
+      <div class="row" style="margin-top:6px;"><span class="faint">本周可支配</span><span class="mono faint">${fmtMoney(fc.weeklyDiscretionary)} AUD</span></div>
+      <div class="row"><span class="faint">餐食预算区间</span><span class="mono faint">${fmtMoney(fc.mealLow)} ~ ${fmtMoney(fc.mealHigh)} AUD/餐</span></div>
+    </div>
+
+    <div class="btn btn-ghost btn-block" onclick="app.openModal({type:'backup'})">🗂️ 数据备份 / 恢复</div>
+  `;
+}
+
+/* ============ fitness ============ */
+function screenFitness(){
+  const workouts = state.fitnessWorkouts;
+  const weights = state.fitnessWeight;
+  const lastW = weights[weights.length-1];
+  return `
+    <div class="btn btn-primary btn-block" style="--btn-color:var(--a-fitness)" onclick="app.openModal({type:'workout'})">+ 记录一次训练</div>
+
+    <div class="section-label">⚖️ 体重</div>
+    <div class="card tab" style="--tab-color:var(--a-fitness)">
+      <div class="grid2">
+        <div><label style="margin-top:0">日期</label><input type="date" id="fw-date" value="${todayStr()}"></div>
+        <div><label style="margin-top:0">体重 (kg)</label><input type="number" step="0.1" id="fw-weight" placeholder="${lastW?lastW.weight:'—'}"></div>
+      </div>
+      <div class="btn btn-ghost btn-block" style="margin-top:10px;" onclick="app.fitness.addWeight()">记录体重</div>
+      ${weights.length>=2 ? `<div class="divider"></div><div class="sparkwrap">${sparkline(weights)}<div><div class="mono" style="font-size:18px;font-weight:700;">${lastW.weight}kg</div><div class="faint">最近记录 ${fmtDate(lastW.date)}</div></div></div>` : ''}
+    </div>
+
+    <div class="section-label">📋 最近训练</div>
+    ${workouts.length===0 ? `<div class="emptystate"><div class="em">🏋️</div>还没有训练记录，点上方按钮开始吧</div>` :
+      workouts.map(w=>`
+        <div class="card tab" style="--tab-color:var(--a-fitness)">
+          <div class="row">
+            <div><span class="mono faint">${fmtDate(w.date)}</span> <span class="badge ok" style="margin-left:4px;">${esc(w.type)}</span></div>
+            <div class="icon-btn" onclick="app.fitness.delWorkout('${w.id}')">×</div>
+          </div>
+          <div style="margin-top:8px;white-space:pre-wrap;font-size:14px;line-height:1.6;">${nl2br(w.content)}</div>
+          <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
+            <span class="chip">状态 ${'★'.repeat(w.rating)}${'☆'.repeat(5-w.rating)}</span>
+            ${w.easy?'<span class="chip">感觉轻松</span>':''}
+            ${w.canIncrease?'<span class="chip">下次可加重</span>':''}
+          </div>
+          ${w.note?`<div class="divider"></div><div class="faint" style="white-space:pre-wrap;">${nl2br(w.note)}</div>`:''}
+        </div>`).join('')}
+  `;
+}
+function sparkline(data){
+  const w=100,h=40, vals=data.map(d=>d.weight);
+  const min=Math.min(...vals), max=Math.max(...vals), range=(max-min)||1;
+  const pts = data.map((d,i)=>{
+    const x = data.length===1?0:(i/(data.length-1))*w;
+    const y = h - ((d.weight-min)/range)*h;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polyline points="${pts}" fill="none" stroke="var(--a-fitness)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
+/* ============ inventory (fridge / household) ============ */
+function screenInventory(modKey){
+  const isHousehold = modKey==='household';
+  const color = isHousehold ? 'var(--a-household)' : 'var(--a-fridge)';
+  const items = [...state[modKey]].sort((a,b)=> (a.qty<=a.threshold?0:1) - (b.qty<=b.threshold?0:1));
+  return `
+    <div class="btn btn-primary btn-block" style="--btn-color:${color}" onclick="app.openModal({type:'inv', mod:'${modKey}'})">+ 添加${isHousehold?'用品':'食材'}</div>
+    <div class="section-label">当前库存（共 ${items.length} 项）</div>
+    ${items.length===0 ? `<div class="emptystate"><div class="em">${isHousehold?'📦':'🧊'}</div>还没有记录，点上方按钮添加</div>` :
+      items.map(it=>{
+        const low = it.qty<=it.threshold;
+        const expanded = temp.expanded===it.id;
+        return `
+        <div class="card tab ${low?'alert':''}" style="--tab-color:${color}">
+          <div class="inv-row" style="border:none;padding:0;">
+            <div class="inv-name" onclick="app.inv.toggleExpand('${it.id}')">
+              <div class="n">${esc(it.name)} ${low?'<span class=\"badge alert\">低库存</span>':''}</div>
+              <div class="u">补货阈值 ${it.threshold}${it.unit}</div>
+            </div>
+            <div class="qty-ctrl">
+              <div class="icon-btn" onclick="app.inv.adjust('${modKey}','${it.id}',${it.isPercent?-10:-1})">−</div>
+              <input type="number" value="${it.qty}" onchange="app.inv.setQty('${modKey}','${it.id}',this.value)">
+              <div class="icon-btn" onclick="app.inv.adjust('${modKey}','${it.id}',${it.isPercent?10:1})">+</div>
+            </div>
+          </div>
+          ${expanded ? `
+            <div class="divider"></div>
+            <label style="margin-top:0;">名称</label><input type="text" id="e-name-${it.id}" value="${esc(it.name)}">
+            <div class="grid2">
+              <div><label>单位</label><input type="text" id="e-unit-${it.id}" value="${esc(it.unit)}" ${it.isPercent?'disabled':''}></div>
+              <div><label>补货阈值</label><input type="number" id="e-th-${it.id}" value="${it.threshold}"></div>
+            </div>
+            <div class="row" style="margin-top:12px;">
+              <div class="btn btn-ghost btn-sm" onclick="app.inv.del('${modKey}','${it.id}')" style="color:var(--alert);">删除该项</div>
+              <div class="btn btn-primary btn-sm" style="--btn-color:${color}" onclick="app.inv.saveEdit('${modKey}','${it.id}')">保存</div>
+            </div>
+          ` : ''}
+        </div>`;
+      }).join('')}
+  `;
+}
+
+/* ============ chores ============ */
+function screenChores(){
+  const tasks = [...state.chores].sort((a,b)=>{
+    const na = a.lastDone? daysBetween(todayStr(),addDays(a.lastDone,a.cycleDays)) : -999;
+    const nb = b.lastDone? daysBetween(todayStr(),addDays(b.lastDone,b.cycleDays)) : -999;
+    return na-nb;
+  });
+  return `
+    <div class="btn btn-primary btn-block" style="--btn-color:var(--a-chores)" onclick="app.openModal({type:'chore'})">+ 添加家务任务</div>
+    <div class="section-label">任务列表（共 ${tasks.length} 项）</div>
+    ${tasks.length===0 ? `<div class="emptystate"><div class="em">🧹</div>还没有家务任务，点上方按钮添加</div>` :
+      tasks.map(t=>{
+        const nextDate = t.lastDone ? addDays(t.lastDone, t.cycleDays) : null;
+        const daysLeft = t.lastDone ? daysBetween(todayStr(), nextDate) : null;
+        let statusText, statusColor;
+        if(!t.lastDone){ statusText='尚未打卡'; statusColor='var(--a-chores)'; }
+        else if(daysLeft<0){ statusText=`已逾期 ${-daysLeft} 天`; statusColor='var(--alert)'; }
+        else if(daysLeft<=1){ statusText= daysLeft===0?'今天到期':'明天到期'; statusColor='var(--alert)'; }
+        else { statusText=`${daysLeft} 天后到期`; statusColor='var(--good)'; }
+        return `
+        <div class="card tab" style="--tab-color:var(--a-chores)">
+          <div class="row">
+            <div>
+              <div style="font-weight:600;font-size:15px;">${esc(t.name)}</div>
+              <div class="faint">周期 ${t.cycleDays} 天 · 上次 ${t.lastDone?fmtDate(t.lastDone):'—'}</div>
+            </div>
+            <div class="icon-btn" onclick="app.chores.del('${t.id}')">×</div>
+          </div>
+          <div class="row" style="margin-top:8px;">
+            <span class="stamp" style="color:${statusColor}">${statusText}</span>
+            <div class="btn btn-primary btn-sm" style="--btn-color:var(--a-chores)" onclick="app.chores.complete('${t.id}')">✓ 完成打卡</div>
+          </div>
+          <textarea placeholder="备注…" style="margin-top:8px;min-height:44px;" onchange="app.chores.editNote('${t.id}', this.value)">${esc(t.note||'')}</textarea>
+        </div>`;
+      }).join('')}
+  `;
+}
+
+/* ============ finance ============ */
+function screenFinance(){
+  const fc = financeCalc();
+  const tx = state.financeTx.slice(0,30);
+  const rentStatus = fc.rentDaysLeft===null ? {t:'尚未记录首次缴费', c:'var(--a-finance)'}
+    : fc.rentDaysLeft<0 ? {t:`已逾期 ${-fc.rentDaysLeft} 天`, c:'var(--alert)'}
+    : fc.rentDaysLeft<=3 ? {t:(fc.rentDaysLeft===0?'今天到期':fc.rentDaysLeft+'天后到期'), c:'var(--alert)'}
+    : {t:`${fc.rentDaysLeft} 天后到期`, c:'var(--good)'};
+  return `
+    <div class="card tab" style="--tab-color:var(--a-finance)">
+      <div class="faint">${monthKey()} 月总预算</div>
+      <div class="mono title-serif" style="font-size:26px;">${fmtMoney(fc.cfg.monthlyBudget)} <span style="font-size:14px;font-weight:400;">AUD</span></div>
+    </div>
+
+    <div class="section-label">固定扣除额（每月自动预留，不受实际记账影响）</div>
+    <div class="card tab" style="--tab-color:var(--a-finance)">
+      <div class="row"><span>房租（${fmtMoney(fc.cfg.rentPaymentAmount)}×2）</span><span class="mono">${fmtMoney(fc.rentFixed)} AUD</span></div>
+      <div class="row" style="margin-top:8px;"><span>聚餐（${fmtMoney(fc.cfg.diningWeekly)}/周）</span><span class="mono">${fmtMoney(fc.diningFixed)} AUD</span></div>
+      <div class="row" style="margin-top:8px;"><span>洗衣（${fmtMoney(fc.cfg.laundryWeekly)}/周）</span><span class="mono">${fmtMoney(fc.laundryFixed)} AUD</span></div>
+      <div class="row" style="margin-top:8px;"><span>预留</span><span class="mono">${fmtMoney(fc.reserveFixed)} AUD</span></div>
+      <div class="divider"></div>
+      <div class="row"><span style="font-weight:600;">固定扣除合计</span><span class="mono" style="font-weight:700;">${fmtMoney(fc.fixedTotal)} AUD</span></div>
+    </div>
+
+    <div class="section-label">🏠 房租缴费</div>
+    <div class="card tab" style="--tab-color:var(--a-finance)">
+      <div class="row">
+        <div>
+          <div class="faint">上次缴费</div>
+          <div class="mono" style="font-weight:600;">${fc.cfg.lastRentPaid?fmtDate(fc.cfg.lastRentPaid):'—'}</div>
+        </div>
+        <span class="stamp" style="color:${rentStatus.c}">${rentStatus.t}</span>
+      </div>
+      <div class="btn btn-primary btn-block" style="--btn-color:var(--a-finance);margin-top:10px;" onclick="app.finance.payRent()">✓ 标记已交房租（${fmtMoney(fc.cfg.rentPaymentAmount)} AUD）</div>
+    </div>
+
+    <div class="section-label">🍽️ 可支配生活预算（月预算 − 固定扣除额）</div>
+    <div class="card tab" style="--tab-color:var(--a-finance)">
+      <div class="row"><span class="muted">本月可支配</span><span class="mono">${fmtMoney(fc.discretionaryPool)} AUD</span></div>
+      <div class="row" style="margin-top:6px;"><span class="muted">已花费（食材/餐饮/用品/其他）</span><span class="mono">${fmtMoney(fc.discretionarySpent)} AUD</span></div>
+      <div class="divider"></div>
+      <div class="row"><span style="font-weight:600;">剩余</span><span class="mono" style="font-weight:700;color:${fc.discretionaryRemaining<0?'var(--alert)':'var(--good)'}">${fmtMoney(fc.discretionaryRemaining)} AUD</span></div>
+      <div class="progress" style="margin-top:8px;"><div style="width:${Math.max(Math.min(fc.discretionaryRemaining/(fc.discretionaryPool||1)*100,100),0)}%;background:${fc.discretionaryRemaining<0?'var(--alert)':'var(--a-finance)'};"></div></div>
+      <div class="divider"></div>
+      <div class="row"><span class="faint">本周可支配（按剩余天数平均）</span><span class="mono faint">${fmtMoney(fc.weeklyDiscretionary)} AUD</span></div>
+      <div class="row"><span class="faint">餐食预算区间（12–14餐/周）</span><span class="mono faint">${fmtMoney(fc.mealLow)}–${fmtMoney(fc.mealHigh)} AUD</span></div>
+    </div>
+
+    <div class="grid2">
+      <div class="btn btn-primary btn-block" style="--btn-color:var(--a-finance)" onclick="app.openModal({type:'tx'})">+ 添加支出</div>
+      <div class="btn btn-ghost btn-block" onclick="app.openModal({type:'financeConfig'})">编辑预算设置</div>
+    </div>
+
+    <div class="section-label">历史记录（含固定项自动记录，仅作追溯，不重复计入可支配预算）</div>
+    ${tx.length===0 ? `<div class="emptystate"><div class="em">💰</div>暂无消费记录</div>` :
+      tx.map(t=>`
+        <div class="card tab" style="--tab-color:var(--a-finance);padding-top:10px;padding-bottom:10px;">
+          <div class="row">
+            <div>
+              <span class="mono" style="font-weight:700;">− ${fmtMoney(t.amount)} AUD</span>
+              <span class="chip" style="margin-left:6px;">${esc(t.category)}</span>
+              <span class="chip">${t.source==='auto'?'自动联动':'手动'}</span>
+            </div>
+            <div class="icon-btn" onclick="app.finance.delTx('${t.id}')">×</div>
+          </div>
+          <div class="faint" style="margin-top:4px;">${fmtDate(t.date)}${t.note?' · '+esc(t.note):''}</div>
+        </div>`).join('')}
+  `;
+}
+
+/* ============ modals ============ */
+function backupFormHTML(){
+  return `
+    <div class="sheet-title">🗂️ 数据备份 / 恢复</div>
+    <div class="sheet-sub">数据存在你自己的 Supabase 项目里，跟这个邮箱账号绑定。建议偶尔导出一份文本备份保存好。</div>
+    <label style="margin-top:0;">导出当前数据</label>
+    <textarea readonly style="min-height:100px;font-family:var(--font-mono);font-size:11px;" onclick="this.select()">${esc(app.backup.exportText())}</textarea>
+    <div class="btn btn-ghost btn-block" style="margin-top:8px;" onclick="app.backup.copy()">复制到剪贴板</div>
+    <div id="backup-status" class="faint" style="margin-top:6px;min-height:16px;"></div>
+    <div class="divider"></div>
+    <label>从备份恢复（粘贴之前导出的内容，会覆盖当前数据）</label>
+    <textarea id="backup-import" placeholder="粘贴备份文本…" style="min-height:80px;font-family:var(--font-mono);font-size:11px;"></textarea>
+    <div class="grid2" style="margin-top:12px;">
+      <div class="btn btn-ghost btn-block" onclick="app.closeModal()">关闭</div>
+      <div class="btn btn-primary btn-block" style="--btn-color:var(--a-dash)" onclick="app.backup.restore()">恢复此备份</div>
+    </div>
+    <div class="divider"></div>
+    <div class="btn btn-ghost btn-block" onclick="doLogout()" style="color:var(--alert);">退出登录</div>
+  `;
+}
+function modalHTML(){
+  let body='';
+  if(modal.type==='workout') body = workoutFormHTML();
+  else if(modal.type==='inv') body = invFormHTML(modal.mod);
+  else if(modal.type==='chore') body = choreFormHTML();
+  else if(modal.type==='tx') body = txFormHTML();
+  else if(modal.type==='financeConfig') body = financeConfigFormHTML();
+  else if(modal.type==='backup') body = backupFormHTML();
+  return `<div class="overlay" onclick="if(event.target===this) app.closeModal()">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      ${body}
+    </div>
+  </div>`;
+}
+
+function workoutFormHTML(){
+  if(!temp.wType) temp.wType='上肢';
+  if(temp.wRating===undefined) temp.wRating=3;
+  const lastSame = state.fitnessWorkouts.find(w=>w.type===temp.wType);
+  return `
+    <div class="sheet-title">🏋️ 记录训练</div>
+    <div class="sheet-sub">简单记录动作与组数即可，无需过度拆分</div>
+    <div id="form-error" style="display:none;color:var(--alert);font-size:13px;margin-bottom:6px;"></div>
+    <label style="margin-top:0;">日期</label><input type="date" id="wf-date" value="${todayStr()}">
+    <label>训练类型</label>
+    <div class="seg">
+      ${['上肢','下肢','心肺'].map(t=>`<div class="seg-opt ${temp.wType===t?'active':''}" onclick="temp.wType='${t}';render();">${t}</div>`).join('')}
+    </div>
+    ${lastSame ? `<div class="faint" style="margin-top:8px;background:#F4F1EA;border-radius:8px;padding:8px 10px;">上次「${lastSame.type}」训练（${fmtDate(lastSame.date)}）：<br><span style="white-space:pre-wrap;">${nl2br(lastSame.content)}</span></div>` : ''}
+    <label>训练内容</label>
+    <textarea id="wf-content" placeholder="例如：&#10;髋外展 31.5kg × 4组&#10;卧推 60kg × 4组"></textarea>
+    <label>今日整体状态</label>
+    <div class="stars">${[1,2,3,4,5].map(n=>`<span class="${n<=temp.wRating?'on':''}" onclick="temp.wRating=${n};render();">★</span>`).join('')}</div>
+    <div class="toggle-row">
+      <span>是否感觉轻松</span>
+      <div class="switch ${temp.wEasy?'on':''}" onclick="temp.wEasy=!temp.wEasy;render();"></div>
+    </div>
+    <div class="toggle-row">
+      <span>下次可以增加重量</span>
+      <div class="switch ${temp.wCanIncrease?'on':''}" onclick="temp.wCanIncrease=!temp.wCanIncrease;render();"></div>
+    </div>
+    <label>自由备注</label>
+    <textarea id="wf-note" placeholder="今天睡眠不足…"></textarea>
+    <div class="grid2" style="margin-top:16px;">
+      <div class="btn btn-ghost btn-block" onclick="app.closeModal()">取消</div>
+      <div class="btn btn-primary btn-block" style="--btn-color:var(--a-fitness)" onclick="app.fitness.submitWorkout()">保存</div>
+    </div>
+  `;
+}
+
+function invFormHTML(modKey){
+  const isHousehold = modKey==='household';
+  const color = isHousehold?'var(--a-household)':'var(--a-fridge)';
+  return `
+    <div class="sheet-title">${isHousehold?'📦 添加生活用品':'🧊 添加食材'}</div>
+    <div id="form-error" style="display:none;color:var(--alert);font-size:13px;margin-bottom:6px;"></div>
+    <label style="margin-top:0;">名称</label><input type="text" id="inv-name" placeholder="例如：${isHousehold?'卫生纸':'鸡蛋'}">
+    ${isHousehold ? `
+    <div class="toggle-row">
+      <span>按百分比记录剩余量（适合液体类）</span>
+      <div class="switch ${temp.invPercent?'on':''}" onclick="temp.invPercent=!temp.invPercent;render();"></div>
+    </div>` : ''}
+    <div class="grid2">
+      <div><label>当前库存${temp.invPercent?'（%）':''}</label><input type="number" id="inv-qty" value="${temp.invPercent?100:''}" placeholder="${temp.invPercent?'':'数量'}"></div>
+      <div><label>单位</label><input type="text" id="inv-unit" placeholder="${temp.invPercent?'%（自动）':'个/盒/袋'}" ${temp.invPercent?'disabled':''}></div>
+    </div>
+    <label>补货提醒阈值${temp.invPercent?'（%）':''}</label>
+    <input type="number" id="inv-threshold" placeholder="${temp.invPercent?'例如 10':'例如 2'}">
+    <div class="grid2" style="margin-top:16px;">
+      <div class="btn btn-ghost btn-block" onclick="app.closeModal()">取消</div>
+      <div class="btn btn-primary btn-block" style="--btn-color:${color}" onclick="app.inv.add('${modKey}')">保存</div>
+    </div>
+  `;
+}
+
+function choreFormHTML(){
+  return `
+    <div class="sheet-title">🧹 添加家务任务</div>
+    <div id="form-error" style="display:none;color:var(--alert);font-size:13px;margin-bottom:6px;"></div>
+    <label style="margin-top:0;">名称</label><input type="text" id="ch-name" placeholder="例如：洗衣服 / 更换床单">
+    <label>建议周期（天）</label><input type="number" id="ch-cycle" value="7">
+    <label>备注（可选）</label><textarea id="ch-note" placeholder="选填"></textarea>
+    <div class="faint" style="margin-top:8px;">提示：名称含「洗衣」的任务，完成打卡时会自动生成财务扣款记录。</div>
+    <div class="grid2" style="margin-top:16px;">
+      <div class="btn btn-ghost btn-block" onclick="app.closeModal()">取消</div>
+      <div class="btn btn-primary btn-block" style="--btn-color:var(--a-chores)" onclick="app.chores.add()">保存</div>
+    </div>
+  `;
+}
+
+function txFormHTML(){
+  if(!temp.txCat) temp.txCat='食材';
+  const cats = ['食材','外出餐饮','生活用品','其他'];
+  return `
+    <div class="sheet-title">💰 添加支出</div>
+    <div class="sheet-sub">这里记录的是"可支配生活预算"里的实际花费；房租/聚餐/洗衣是固定扣除额，不在这里记</div>
+    <div id="form-error" style="display:none;color:var(--alert);font-size:13px;margin-bottom:6px;"></div>
+    <label style="margin-top:0;">金额（AUD）</label><input type="number" step="0.01" id="tx-amount" placeholder="0.00">
+    <label>日期</label><input type="date" id="tx-date" value="${todayStr()}">
+    <label>分类</label>
+    <div class="seg">${cats.map(c=>`<div class="seg-opt ${temp.txCat===c?'active':''}" onclick="temp.txCat='${c}';render();">${c}</div>`).join('')}</div>
+    <label>备注（可选）</label><input type="text" id="tx-note" placeholder="选填">
+    <div class="grid2" style="margin-top:16px;">
+      <div class="btn btn-ghost btn-block" onclick="app.closeModal()">取消</div>
+      <div class="btn btn-primary btn-block" style="--btn-color:var(--a-finance)" onclick="app.finance.addTx()">保存</div>
+    </div>
+  `;
+}
+
+function financeConfigFormHTML(){
+  const c = state.financeConfig;
+  return `
+    <div class="sheet-title">编辑预算设置</div>
+    <div class="sheet-sub">房租/聚餐/洗衣/预留均为固定扣除额，直接从月预算里划走</div>
+    <label style="margin-top:0;">月总预算（AUD）</label><input type="number" id="cf-total" value="${c.monthlyBudget}">
+    <div class="grid2">
+      <div><label>房租（每次）</label><input type="number" id="cf-rent" value="${c.rentPaymentAmount}"></div>
+      <div><label>缴费周期（天）</label><input type="number" id="cf-rent-cycle" value="${c.rentCycleDays}"></div>
+    </div>
+    <div class="grid2">
+      <div><label>聚餐（每周）</label><input type="number" id="cf-dining" value="${c.diningWeekly}"></div>
+      <div><label>洗衣（每周）</label><input type="number" id="cf-laundry" value="${c.laundryWeekly}"></div>
+    </div>
+    <label>预留（每月）</label><input type="number" id="cf-reserve" value="${c.reserve}">
+    <div class="grid2" style="margin-top:16px;">
+      <div class="btn btn-ghost btn-block" onclick="app.closeModal()">取消</div>
+      <div class="btn btn-primary btn-block" style="--btn-color:var(--a-finance)" onclick="app.finance.saveConfig()">保存</div>
+    </div>
+  `;
+}
+
+function wirePostRender(){ /* reserved for future DOM wiring */ }
+
+init();
+</script>
+</body>
+</html>
